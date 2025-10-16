@@ -116,3 +116,46 @@ export const getRecommendedProducts = async (req,res) => {
         res.status(500).json({ message: "Internal Server Error", error: error.message })
     }
 }
+
+export const getProductsByCategory = async (req,res) => {
+    const {category} = req.params
+    try{
+        const products = await Product.find({ category })
+        res.status(200).json(products)
+    }catch(error){
+        console.log("Error in get Products by category controller", error.message)
+        res.status(500).json({ message: "Internal server error", error : error.message })
+    }
+}
+
+export const toggleFeaturedProduct = async (req,res) => {
+    try{
+        const product = await Product.findById(req.params.id)
+        if(product){
+            product.isFeatured = !product.isFeatured
+            const updatedProduct = await product.save();
+            // update the cache
+            await updateFeaturedProductsCache();
+            res.json(updatedProduct)
+        }else{
+            res.status(404).json({ message: "Product Not Found" })
+        }
+
+    }catch(error){
+        console.log("Error in toggleFeatureProduct controller", error.message)
+        res.status(500).json({ message: "Internal server error", error: error.message})
+    }
+}
+
+async function updateFeaturedProductsCache(){
+    try{
+        //The Lean() method is used to return plain javaScript objects instead of full Mongoose documents.
+        //This can significantly improve perfomance
+
+        const featuredProducts = await Product.find({ isfeatured:true }).lean();
+        await redis.set("featured_products",JSON.stringify(featuredProducts))
+    }catch(error){
+        console.log("Error in Update cache function")
+        res.status(500).json({ message: "Internal server error", error: error.message })
+    }
+}
