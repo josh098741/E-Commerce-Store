@@ -159,3 +159,6 @@ export const refreshToken = async (req,res) => {
         res.status(500).json({ message: "Internal Server Error",error: error.message })
     }
 }
+
+//TODO : Implement get Profile later
+// export const getProfile = async (req,res) => {}
