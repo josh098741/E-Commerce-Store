@@ -87,7 +87,7 @@ export const deleteProduct = async (req,res) => {
 
         await Product.findByIdAndDelete(req.params.id)
 
-        req.status(200).json({ message: "Product deleted successfully" })
+        res.status(200).json({ message: "Product deleted successfully" })
     }catch(error){
         console.log("Error in deleting product controller", error.message)
         res.status(500).json({ message: "Internal server error", error: error.message })
@@ -112,7 +112,7 @@ export const getRecommendedProducts = async (req,res) => {
         ])
         res.status(200).json(products)
     }catch(error){
-        console.log("Error in getRecommendation controller", error.meessage)
+        console.log("Error in getRecommendation controller", error.message)
         res.status(500).json({ message: "Internal Server Error", error: error.message })
     }
 }
@@ -152,10 +152,9 @@ async function updateFeaturedProductsCache(){
         //The Lean() method is used to return plain javaScript objects instead of full Mongoose documents.
         //This can significantly improve perfomance
 
-        const featuredProducts = await Product.find({ isfeatured:true }).lean();
+        const featuredProducts = await Product.find({ isFeatured:true }).lean();
         await redis.set("featured_products",JSON.stringify(featuredProducts))
     }catch(error){
         console.log("Error in Update cache function")
-        res.status(500).json({ message: "Internal server error", error: error.message })
     }
 }
