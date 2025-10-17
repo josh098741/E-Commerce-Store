@@ -32,11 +32,20 @@ router.post("/checkout-success", protectRoute, async(req,res) => {
                     quantity: product.quantity,
                     price: product.price
                 })),
-                totalAmount: session.amount_total / 100 //Convert from cents to dollars
+                totalAmount: session.amount_total / 100, //Convert from cents to dollars
+                paymentIntent: session.payment_intent,
+                stripeSessionId: sessionId
+            })
+            await newOrder.save()
+            res.status(200).json({
+                success: true,
+                message: "Payment successfull, order created, and coupon deactivated if used",
+                orderId: newOrder._id
             })
         }
     }catch(error){
-
+        console.error("Error processing successful checkout:",error)
+        res.status(500).json({ message: "Error in processing checkout",error: error.message })
     }
 })
 
