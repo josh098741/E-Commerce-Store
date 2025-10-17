@@ -1,6 +1,6 @@
 import Product from "../models/product.model.js"
 
-
+//TODO => Fix if broken from correction
 export const getCartProducts = async (req,res) => {
     try{
         const products = await Product.find({ _id: {$in: req.user.cartItems} })
@@ -8,7 +8,7 @@ export const getCartProducts = async (req,res) => {
         //add quantity for each product
         const cartItems = products.map(product => {
             const item = req.user.cartItems.find(cartItem => cartItem.id === product.id)
-            return {...product.toJSON,quantity:item.quantity}
+            return {...product.toJSON(),quantity:item.quantity}
         })
 
         res.status(200).json(cartItems)
