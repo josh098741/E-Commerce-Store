@@ -1,160 +1,155 @@
-import cloudinary from "../lib/cloudinary.js"
-import { redis } from "../lib/redis.js"
-import Product from "../models/product.model.js"
+import { redis } from "../lib/redis.js";
+import cloudinary from "../lib/cloudinary.js";
+import Product from "../models/product.model.js";
 
-export const getAllProducts = async (req,res) => {
-    try{
+export const getAllProducts = async (req, res) => {
+	try {
+		const products = await Product.find({}); // find all products
+		res.json({ products });
+	} catch (error) {
+		console.log("Error in getAllProducts controller", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
+	}
+};
 
-        const products = await Product.find({})//find all products
-        res.status(200).json({ products })
+export const getFeaturedProducts = async (req, res) => {
+	try {
+		let featuredProducts = await redis.get("featured_products");
+		if (featuredProducts) {
+			return res.json(JSON.parse(featuredProducts));
+		}
 
-    }catch(error){
-        console.log("Error in get All products controller", error.message)
-        res.status(500).json({ message: "Internal server Error", error: error.message })
-    }
-}
+		// if not in redis, fetch from mongodb
+		// .lean() is gonna return a plain javascript object instead of a mongodb document
+		// which is good for performance
+		featuredProducts = await Product.find({ isFeatured: true }).lean();
 
-export const getFeaturedProducts = async (req,res) => {
-    try{
+		if (!featuredProducts) {
+			return res.status(404).json({ message: "No featured products found" });
+		}
 
-        let featuredProducts =  await redis.get("featured_products")
+		// store in redis for future quick access
 
-        if(featuredProducts){
-            return res.status(200).json(JSON.parse(featuredProducts))
-        }
+		await redis.set("featured_products", JSON.stringify(featuredProducts));
 
-        //if not in redis we should fetch it from mongo db
-        //.lean() is gonna return a plain javaScript object instead of a mongo db document which speeds perfomance
-        featuredProducts = await Product.find({ isFeatured:true }).lean()
+		res.json(featuredProducts);
+	} catch (error) {
+		console.log("Error in getFeaturedProducts controller", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
+	}
+};
 
-        if(!featuredProducts){
-            return res.status(404).json({ message: "No Featured products found" })
-        }
+export const createProduct = async (req, res) => {
+	try {
+		const { name, description, price, image, category } = req.body;
 
-        //Store in redis for future quick access
-        await redis.set("featured_products", JSON.stringify(featuredProducts))
+		let cloudinaryResponse = null;
 
-        res.status(200).json({ featuredProducts })
-    }catch(error){
-        console.log("Error in the get Featured Products controller", error.message)
-        res.status(500).json({message: "Internal Server Error"})
-    }
-}
+		if (image) {
+			cloudinaryResponse = await cloudinary.uploader.upload(image, { folder: "products" });
+		}
 
-export const createProduct = async (req,res) => {
-    try{
-        const { name, description, price, image, category } = req.body
+		const product = await Product.create({
+			name,
+			description,
+			price,
+			image: cloudinaryResponse?.secure_url ? cloudinaryResponse.secure_url : "",
+			category,
+		});
 
-        let cloudinaryResponse = null
+		res.status(201).json(product);
+	} catch (error) {
+		console.log("Error in createProduct controller", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
+	}
+};
 
-        if(image){
-            cloudinaryResponse = await cloudinary.uploader.upload(image, {folder: "products"})
-        }
+export const deleteProduct = async (req, res) => {
+	try {
+		const product = await Product.findById(req.params.id);
 
-        const product = await Product.create({
-            name,
-            description,
-            price,
-            image: cloudinaryResponse?.secure_url ? cloudinaryResponse.secure_url : "",
-            category
-        })
+		if (!product) {
+			return res.status(404).json({ message: "Product not found" });
+		}
 
-        res.status(201).json( product )
-    }catch(error){
-        console.log("Error in createProduct controller", error.message)
-        res.status(500).json({ message: "Internal Server error",error: error.message })
-    }
-}
+		if (product.image) {
+			const publicId = product.image.split("/").pop().split(".")[0];
+			try {
+				await cloudinary.uploader.destroy(`products/${publicId}`);
+				console.log("deleted image from cloduinary");
+			} catch (error) {
+				console.log("error deleting image from cloduinary", error);
+			}
+		}
 
-export const deleteProduct = async (req,res) => {
-    try{
-        const product = await Product.findById(req.params.id)
+		await Product.findByIdAndDelete(req.params.id);
 
-        if(!product){
-            return res.status(404).json({ message: "Product not found" })
-        }
+		res.json({ message: "Product deleted successfully" });
+	} catch (error) {
+		console.log("Error in deleteProduct controller", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
+	}
+};
 
-        if(product.image){
-            const publicId = product.image.split("/").pop().split(".")[0] //This will get the id of the image so that we can delete it
+export const getRecommendedProducts = async (req, res) => {
+	try {
+		const products = await Product.aggregate([
+			{
+				$sample: { size: 4 },
+			},
+			{
+				$project: {
+					_id: 1,
+					name: 1,
+					description: 1,
+					image: 1,
+					price: 1,
+				},
+			},
+		]);
 
-            try{
-                await cloudinary.uploader.destroy(`products/${publicId}`)
-                console.log("deleted the image from cloudinary")
-            }catch(error){
-                console.log("Error in deleting the image from cloudinary", error)
-            }
-        }
+		res.json(products);
+	} catch (error) {
+		console.log("Error in getRecommendedProducts controller", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
+	}
+};
 
-        await Product.findByIdAndDelete(req.params.id)
+export const getProductsByCategory = async (req, res) => {
+	const { category } = req.params;
+	try {
+		const products = await Product.find({ category });
+		res.json({ products });
+	} catch (error) {
+		console.log("Error in getProductsByCategory controller", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
+	}
+};
 
-        res.status(200).json({ message: "Product deleted successfully" })
-    }catch(error){
-        console.log("Error in deleting product controller", error.message)
-        res.status(500).json({ message: "Internal server error", error: error.message })
-    }
-}
+export const toggleFeaturedProduct = async (req, res) => {
+	try {
+		const product = await Product.findById(req.params.id);
+		if (product) {
+			product.isFeatured = !product.isFeatured;
+			const updatedProduct = await product.save();
+			await updateFeaturedProductsCache();
+			res.json(updatedProduct);
+		} else {
+			res.status(404).json({ message: "Product not found" });
+		}
+	} catch (error) {
+		console.log("Error in toggleFeaturedProduct controller", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
+	}
+};
 
-export const getRecommendedProducts = async (req,res) => {
-    try{
-        const products = await Product.aggregate([
-            {
-                $sample: {size:3}
-            },
-            {
-                $project: {
-                    _id: 1,
-                    name: 1,
-                    description: 1,
-                    image: 1,
-                    price: 1
-                }
-            }
-        ])
-        res.status(200).json(products)
-    }catch(error){
-        console.log("Error in getRecommendation controller", error.message)
-        res.status(500).json({ message: "Internal Server Error", error: error.message })
-    }
-}
+async function updateFeaturedProductsCache() {
+	try {
+		// The lean() method  is used to return plain JavaScript objects instead of full Mongoose documents. This can significantly improve performance
 
-export const getProductsByCategory = async (req,res) => {
-    const {category} = req.params
-    try{
-        const products = await Product.find({ category })
-        res.status(200).json({products})
-    }catch(error){
-        console.log("Error in get Products by category controller", error.message)
-        res.status(500).json({ message: "Internal server error", error : error.message })
-    }
-}
-
-export const toggleFeaturedProduct = async (req,res) => {
-    try{
-        const product = await Product.findById(req.params.id)
-        if(product){
-            product.isFeatured = !product.isFeatured
-            const updatedProduct = await product.save();
-            // update the cache
-            await updateFeaturedProductsCache();
-            res.json(updatedProduct)
-        }else{
-            res.status(404).json({ message: "Product Not Found" })
-        }
-
-    }catch(error){
-        console.log("Error in toggleFeatureProduct controller", error.message)
-        res.status(500).json({ message: "Internal server error", error: error.message})
-    }
-}
-
-async function updateFeaturedProductsCache(){
-    try{
-        //The Lean() method is used to return plain javaScript objects instead of full Mongoose documents.
-        //This can significantly improve perfomance
-
-        const featuredProducts = await Product.find({ isFeatured:true }).lean();
-        await redis.set("featured_products",JSON.stringify(featuredProducts))
-    }catch(error){
-        console.log("Error in Update cache function")
-    }
+		const featuredProducts = await Product.find({ isFeatured: true }).lean();
+		await redis.set("featured_products", JSON.stringify(featuredProducts));
+	} catch (error) {
+		console.log("error in update cache function");
+	}
 }
