@@ -17,7 +17,7 @@ export const useCartStore = create((set,get) => ({
             set({ cart: [] })
             toast.error(error?.response?.data?.message || "An error occured")
         }
-    },
+    }, 
 
     addToCart: async (product) => {
         try{
