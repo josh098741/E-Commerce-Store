@@ -7,6 +7,7 @@ export const useCartStore = create((set,get) => ({
     coupon: null,
     total: 0,
     subtotal: 0,
+    isCouponApplied: false,
 
     getCartItems: async () => {
         try{
@@ -43,10 +44,40 @@ export const useCartStore = create((set,get) => ({
         let total = subtotal
 
         if(coupon){
-            const discount = subtotal * (coupon.discountPercantage / 100)
+            const discount = subtotal * (coupon.discountPercentage / 100)
             total = subtotal - discount
         }
 
         set({ subtotal, total })
+    },
+
+    removeFromCart: async (productId) => {
+        try{
+            await axios.delete("/cart",{data : {productId}})
+            set(prevState => ({ cart: prevState.cart.filter(item => item._id !== productId) }))
+            get().calculateTotals();
+            toast.success("Item removed from cart")
+        }catch(error){
+            toast.error(error?.response?.data?.message || "Failed to remove item")
+        }
+        
+    },
+
+    updateQuantity: async (productId, quantity) => {
+        try{
+            if(quantity === 0){
+                await get().removeFromCart()
+                return;
+            }
+
+            await axios.put(`/cart/${productId}`, {quantity})
+
+            set((prevState) => ({
+                cart: prevState.cart.map((item) => (item._id === productId ? {...item, quantity} : item ))
+            }))
+            get().calculateTotals()
+        }catch(error){
+            toast.error(error?.response?.data?.message || "Failed to update data")
+        }
     }
 }))
