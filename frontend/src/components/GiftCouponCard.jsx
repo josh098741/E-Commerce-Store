@@ -1,19 +1,29 @@
 //eslint-disable-next-line
 import { motion } from 'framer-motion'
-import React,{ useState } from 'react'
+import React,{ useState,useEffect } from 'react'
 import { useCartStore } from '../store/useCartStore'
 
 function GiftCouponCard(){
 
     const [userInputCode,setUserInputCode] = useState("")
-    const {coupon, isCouponApplied} = useCartStore()
+    const {coupon, isCouponApplied,applyCoupon,getMyCoupon,removeCoupon } = useCartStore()
+
+    useEffect(() => {
+        getMyCoupon()
+    },[getMyCoupon])
+
+    useEffect(() => {
+        if(coupon) setUserInputCode(coupon.code)
+    },[coupon])
 
     const handleApplyCoupon = () => {
-        console.log(userInputCode)
+        if(!userInputCode) return;
+        applyCoupon(userInputCode)
     }
 
-    const handleRemoveCoupon = () => {
-        console.log(userInputCode)
+    const handleRemoveCoupon = async () => {
+        await removeCoupon()
+        setUserInputCode("")
     }
 
     return(
@@ -45,11 +55,11 @@ function GiftCouponCard(){
                 >Apply Code</motion.button>
             </div>
             {
-                isCouponApplied && coupon (
+                isCouponApplied && coupon && (
                     <div className='mt-4'>
                         <h3 className='text-lg font-medium text-gray-300 '>Applied Coupon</h3>
                         <p className="mt-2 text-sm text-gray-400">
-                            {coupon.code} - {coupon.discountPercantage}% off
+                            {coupon.code} - {coupon.discountPercentage}% off
                         </p>
                         <motion.button
                         type="button"
