@@ -79,5 +79,16 @@ export const useCartStore = create((set,get) => ({
         }catch(error){
             toast.error(error?.response?.data?.message || "Failed to update data")
         }
+    },
+
+    clearCart: async () => {
+        try {
+            await axios.delete("/cart/clear");
+            set({ cart: [], coupon: null, total: 0, subtotal: 0, isCouponApplied: false });
+            toast.success("Cart cleared successfully");
+        } catch (error) {
+            console.error("Failed to clear cart:", error);
+            toast.error("Failed to clear cart");
+        }
     }
 }))
