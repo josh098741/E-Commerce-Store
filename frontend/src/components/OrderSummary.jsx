@@ -1,12 +1,17 @@
 //eslint-disable-next-line
 import { motion } from "framer-motion"
+import toast from "react-hot-toast"
 import { useCartStore } from "../store/useCartStore"
 import { Link } from "react-router-dom"
 import { MoveRight } from "lucide-react"
+import { loadStripe } from "@stripe/stripe-js"
+import axios from "../lib/axios"
+
+const stripePromise = loadStripe("pk_test_51SJCYGFkJzLP8T5iPObEaq1ixYthMpkkcVD3cVESQ6tNs6cfMF2mhAZz8AnCGlYFHpAX67N9DYz7gzoCVVuTkYfz00kRxCjWJW")
 
 function OrderSummary(){
 
-    const { total,subtotal,coupon,isCouponApplied } = useCartStore()
+    const { total,subtotal,coupon,isCouponApplied,cart } = useCartStore()
 
     const savings = subtotal - total
     
@@ -16,7 +21,39 @@ function OrderSummary(){
 
     const formattedSavings = savings.toFixed(2)
 
-    const handleClick = async () => {}
+    const handlePayment = async () => {
+        try {
+            if (!cart || cart.length === 0) {
+                toast.error('Your cart is empty');
+                return;
+            }
+
+            toast.loading('Preparing checkout...');
+
+            const stripe = await stripePromise;
+            if (!stripe) {
+                throw new Error('Could not initialize Stripe');
+            }
+
+            const res = await axios.post("/payments/create-checkout-session", {
+                products: cart,
+                couponCode: coupon ? coupon.code : null
+            });
+
+            const { url } = res.data;
+            if (!url) {
+                throw new Error('No checkout URL received');
+            }
+
+            toast.dismiss();
+            // Use window.location.assign for better browser compatibility
+            window.location.assign(url);
+            
+        } catch (error) {
+            console.error("Checkout error:", error);
+            toast.error(error?.response?.data?.message || error.message || "Something went wrong with checkout");
+        }
+    };
 
     return(
         <motion.div
@@ -60,7 +97,7 @@ function OrderSummary(){
                 className="flex w-full items-center justify-center rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald 300"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={{ handleClick }}
+                onClick={handlePayment}
                 >
                     Proceed to checkout
                 </motion.button>

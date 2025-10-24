@@ -7,6 +7,8 @@ import LoadingSpinner from './components/LoadingSinner'
 import AdminPage from './pages/AdminPage';
 import CategoryPage from './pages/CategoryPage'
 import CartPage from './pages/CartPage';
+import PurchaseSuccessPage from './pages/PurchaseSuccessPage';
+import PurchaseCancelPage from './pages/PurchaseCancelPage';
 
 import Navbar from './components/Navbar';
 
@@ -49,6 +51,8 @@ function App() {
           <Route path='/secret-dashboard' element={user?.role === "admin" ? <AdminPage/> : <Navigate to="/login" /> } />
           <Route path='/category/:category' element={<CategoryPage />} />
           <Route path='/cart' element={user ? <CartPage /> : <Navigate to="/" /> } />
+          <Route path='/purchase-success' element={user ? <PurchaseSuccessPage /> : <Navigate to="/login" /> } />
+          <Route path='/purchase-cancel' element={user ? <PurchaseCancelPage /> : <Navigate to="/login" /> } />
         </Routes>
       </div>
       <Toaster />
