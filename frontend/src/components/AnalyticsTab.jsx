@@ -102,7 +102,7 @@ function AnalyticsTab(){
 }
 
 export default AnalyticsTab
-
+//eslint-disable-next-line
 const AnalyticsCard = ({ title, value, icon: Icon, color }) => (
     <motion.div
     className={`bg-gray-800 rounded-lg p-6 shadow-lg overflow-hidden relative ${color}`}
